@@ -11,7 +11,7 @@
     <hr />
     <dl class="dl-horizontal">
         <dt>
-            @Html.DisplayNameFor(model => model.MembershipType.Name)
+            會員等級
         </dt>
 
         <dd>
@@ -19,11 +19,19 @@
         </dd>
 
         <dt>
-            @Html.DisplayNameFor(model => model.Name)
+            客戶名稱
         </dt>
 
         <dd>
             @Html.DisplayFor(model => model.Name)
+        </dd>
+
+        <dt>
+            客戶生日
+        </dt>
+
+        <dd>
+            @Html.DisplayFor(model => model.BitrhDate)
         </dd>
 
     </dl>

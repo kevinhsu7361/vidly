@@ -7,12 +7,18 @@ using System.Net;
 using System.Web;
 using System.Web.Mvc;
 using vidly.Models;
+using vidly.ViewModels;
 
 namespace vidly.Controllers
 {
     public class CustomersController : Controller
     {
-        private ApplicationDbContext db = new ApplicationDbContext();
+        private ApplicationDbContext db;
+
+        public CustomersController()
+        {
+            db = new ApplicationDbContext();
+        }
 
         // GET: Customers
         public ActionResult Index()
@@ -24,11 +30,7 @@ namespace vidly.Controllers
         // GET: Customers/Details/5
         public ActionResult Details(int? id)
         {
-            if (id == null)
-            {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
-            }
-            Customer customer = db.Customers.Find(id);
+            Customer customer = db.Customers.Include(c => c.MembershipType).SingleOrDefault(c => c.Id == id);
             if (customer == null)
             {
                 return HttpNotFound();
@@ -39,59 +41,58 @@ namespace vidly.Controllers
         // GET: Customers/Create
         public ActionResult Create()
         {
-            ViewBag.MembershipTypeId = new SelectList(db.MembershipTypes, "Id", "Name");
-            return View();
-        }
-
-        // POST: Customers/Create
-        // 若要避免過量張貼攻擊，請啟用您要繫結的特定屬性。
-        // 如需詳細資料，請參閱 https://go.microsoft.com/fwlink/?LinkId=317598。
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Create([Bind(Include = "Id,Name,MembershipTypeId")] Customer customer)
-        {
-            if (ModelState.IsValid)
+            var membershipTypes = db.MembershipTypes.ToList();
+            var viewModel = new CustomerFormViewModel
             {
-                db.Customers.Add(customer);
-                db.SaveChanges();
-                return RedirectToAction("Index");
-            }
+                Customer = new Customer(),
+                MembershipTypes = membershipTypes
+            };
 
-            ViewBag.MembershipTypeId = new SelectList(db.MembershipTypes, "Id", "Name", customer.MembershipTypeId);
-            return View(customer);
+            return View("CustomerForm", viewModel);
         }
 
         // GET: Customers/Edit/5
         public ActionResult Edit(int? id)
         {
-            if (id == null)
-            {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
-            }
-            Customer customer = db.Customers.Find(id);
+            var customer = db.Customers.SingleOrDefault(c => c.Id == id);
+
             if (customer == null)
-            {
                 return HttpNotFound();
-            }
-            ViewBag.MembershipTypeId = new SelectList(db.MembershipTypes, "Id", "Name", customer.MembershipTypeId);
-            return View(customer);
+
+            var viewModel = new CustomerFormViewModel
+            {
+                Customer = customer,
+                MembershipTypes = db.MembershipTypes.ToList()
+            };
+
+            return View("CustomerForm", viewModel);
         }
 
-        // POST: Customers/Edit/5
-        // 若要避免過量張貼攻擊，請啟用您要繫結的特定屬性。
-        // 如需詳細資料，請參閱 https://go.microsoft.com/fwlink/?LinkId=317598。
+        // POST: Customers/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit([Bind(Include = "Id,Name,MembershipTypeId")] Customer customer)
+        public ActionResult Save(Customer customer)
         {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
+            {
+                var viewModel = new CustomerFormViewModel
+                {
+                    Customer = customer,
+                    MembershipTypes = db.MembershipTypes.ToList()
+                };
+
+                return View("CustomerForm", viewModel);
+            }
+
+            if (customer.Id == 0)
+                db.Customers.Add(customer);
+            else
             {
                 db.Entry(customer).State = EntityState.Modified;
-                db.SaveChanges();
-                return RedirectToAction("Index");
             }
-            ViewBag.MembershipTypeId = new SelectList(db.MembershipTypes, "Id", "Name", customer.MembershipTypeId);
-            return View(customer);
+
+            db.SaveChanges();
+            return RedirectToAction("Index");
         }
 
         // GET: Customers/Delete/5

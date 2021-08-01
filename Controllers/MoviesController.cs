@@ -7,6 +7,7 @@ using System.Net;
 using System.Web;
 using System.Web.Mvc;
 using vidly.Models;
+using vidly.ViewModels;
 
 namespace vidly.Controllers
 {
@@ -24,23 +25,41 @@ namespace vidly.Controllers
         // GET: Movies/Details/5
         public ActionResult Details(int? id)
         {
-            if (id == null)
-            {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
-            }
-            Movie movie = db.Movies.Find(id);
+            var movie = db.Movies.Include(m => m.Genre).SingleOrDefault(m => m.Id == id);
+
             if (movie == null)
-            {
                 return HttpNotFound();
-            }
+
             return View(movie);
         }
 
         // GET: Movies/Create
         public ActionResult Create()
         {
-            ViewBag.GenreId = new SelectList(db.Genres, "Id", "Name");
-            return View();
+            var genres = db.Genres.ToList();
+
+            var viewModel = new MovieFormViewModel
+            {
+                Genres = genres
+            };
+
+            return View("MovieForm", viewModel);
+        }
+
+        // GET: Movies/Edit/5
+        public ActionResult Edit(int? id)
+        {
+            var movie = db.Movies.SingleOrDefault(c => c.Id == id);
+
+            if (movie == null)
+                return HttpNotFound();
+
+            var viewModel = new MovieFormViewModel(movie)
+            {
+                Genres = db.Genres.ToList()
+            };
+
+            return View("MovieForm", viewModel);
         }
 
         // POST: Movies/Create
@@ -48,51 +67,38 @@ namespace vidly.Controllers
         // 如需詳細資料，請參閱 https://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create([Bind(Include = "Id,Name,GenreId,DateAdded,ReleaseDate,NumberInStock")] Movie movie)
+        public ActionResult Save(Movie movie)
         {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
+                var viewModel = new MovieFormViewModel(movie)
+                {
+                    Genres = db.Genres.ToList()
+                };
+
+                return View("MovieForm", viewModel);
+            }
+
+            if (movie.Id == 0)
+            {
+                movie.DateAdded = DateTime.Now;
                 db.Movies.Add(movie);
-                db.SaveChanges();
-                return RedirectToAction("Index");
+            }
+            else
+            {
+                var movieInDb = db.Movies.Single(m => m.Id == movie.Id);
+                movieInDb.Name = movie.Name;
+                movieInDb.GenreId = movie.GenreId;
+                movieInDb.NumberInStock = movie.NumberInStock;
+                movieInDb.ReleaseDate = movie.ReleaseDate;
             }
 
-            ViewBag.GenreId = new SelectList(db.Genres, "Id", "Name", movie.GenreId);
-            return View(movie);
+            db.SaveChanges();
+
+            return RedirectToAction("Index", "Movies");
         }
 
-        // GET: Movies/Edit/5
-        public ActionResult Edit(int? id)
-        {
-            if (id == null)
-            {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
-            }
-            Movie movie = db.Movies.Find(id);
-            if (movie == null)
-            {
-                return HttpNotFound();
-            }
-            ViewBag.GenreId = new SelectList(db.Genres, "Id", "Name", movie.GenreId);
-            return View(movie);
-        }
 
-        // POST: Movies/Edit/5
-        // 若要避免過量張貼攻擊，請啟用您要繫結的特定屬性。
-        // 如需詳細資料，請參閱 https://go.microsoft.com/fwlink/?LinkId=317598。
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Edit([Bind(Include = "Id,Name,GenreId,DateAdded,ReleaseDate,NumberInStock")] Movie movie)
-        {
-            if (ModelState.IsValid)
-            {
-                db.Entry(movie).State = EntityState.Modified;
-                db.SaveChanges();
-                return RedirectToAction("Index");
-            }
-            ViewBag.GenreId = new SelectList(db.Genres, "Id", "Name", movie.GenreId);
-            return View(movie);
-        }
 
         // GET: Movies/Delete/5
         public ActionResult Delete(int? id)
